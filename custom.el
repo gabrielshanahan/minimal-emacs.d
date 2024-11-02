@@ -6,7 +6,7 @@
  '(custom-safe-themes
    '("8d3ef5ff6273f2a552152c7febc40eabca26bae05bd12bc85062e2dc224cde9a" default))
  '(package-selected-packages
-   '(treesit slime-docker dockerfile-mode slime rainbow-delimiters multiple-cursors dimmer which-key vertico popper orderless marginalia lispy embark-consult doom-themes corfu cape))
+   '(prism gumshoe flycheck treesit slime-docker dockerfile-mode slime rainbow-delimiters multiple-cursors dimmer which-key vertico popper orderless marginalia lispy embark-consult doom-themes corfu cape))
  '(safe-local-variable-values
    '((package . RFC2388)
      (Package . FLEXI-STREAMS)

@@ -1,5 +1,8 @@
 ;;; post-init.el --- DESCRIPTION -*- no-byte-compile: t; lexical-binding: t; -*-
+;;; Commentary:
+;;; Contains all customizations of Emacs
 
+;;; Code:
 ;; Use Command key as Meta
 (setq mac-command-modifier 'meta)
 ;; Use Option key as Meta as well
@@ -32,6 +35,7 @@
 ;; Use UTF-8
 (setenv "LC_CTYPE" "en_US.UTF-8")
 
+;; Scroll by pixels, not by lines
 (pixel-scroll-precision-mode)
 
 (setq display-time-format "%H:%M:%S %Z(%z)")
@@ -40,7 +44,7 @@
 
 ;; Change cursor color
 (setq default-frame-alist `((cursor-color . "#FF2400")
-                            ,@default-frame-alist)) 
+                            ,@default-frame-alist))
 
 ;; Auto-revert in Emacs is a feature that automatically updates the
 ;; contents of a buffer to reflect changes made to the underlying file
@@ -110,8 +114,10 @@
   ;; to input multiple patterns separated by spaces, which Orderless then
   ;; matches in any order against the candidates.
   :ensure t
+  :defer t
   :custom
-  (completion-styles '(orderless basic))
+  (orderless-matching-styles '(orderless-literal orderless-regexp orderless-flex))
+  (completion-styles '(orderless partial-completion basic))
   (completion-category-defaults nil)
   (completion-category-overrides '((file (styles partial-completion)))))
 
@@ -132,10 +138,10 @@
   :ensure t
   :defer t
   :bind
-  (("C-." . embark-act)         ;; pick some comfortable binding
-   ("C-;" . embark-dwim)        ;; good alternative: M-.
-   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
-
+  (("C-c ." . embark-act)       ;; Basically "right-click" a thing at point
+   ("C-c /" . embark-dwim)      ;; Basically "left-click" a thing at point
+   ("C-h B" . embark-bindings)) ;; Alternative for `describe-bindings'
+  
   :init
   ;; Replace the key help with a completing-read interface
   (setq prefix-help-command #'embark-prefix-help-command)
@@ -149,6 +155,7 @@
 
 (use-package embark-consult
   :ensure t
+  :defer t
   :after (embark consult)
 
   ;; Only necessary if you have the hook below
@@ -161,6 +168,7 @@
 
 (use-package consult
   :ensure t
+  :defer t
   :bind (;; C-c bindings in `mode-specific-map'
          ("C-c M-x" . consult-mode-command)
          ("C-c h" . consult-history)
@@ -218,11 +226,11 @@
   :hook (completion-list-mode . consult-preview-at-point-mode)
 
   :init
-  ;; Optionally configure the register formatting. This improves the register
+  ;; Configure the register formatting. This improves the register
   (setq register-preview-delay 0.5
         register-preview-function #'consult-register-format)
 
-  ;; Optionally tweak the register preview window.
+  ;; Tweak the register preview window.
   (advice-add #'register-preview :override #'consult-register-window)
 
   ;; Use Consult to select xref locations with preview
@@ -240,9 +248,11 @@
    :preview-key '(:debounce 0.4 any))
   (setq consult-narrow-key "<"))
 
+;; In-buffer completion - basically Vertico for buffers
 (use-package corfu
   :ensure t
   :defer t
+  :after orderless
   :commands (corfu-mode global-corfu-mode)
 
   :hook ((prog-mode . corfu-mode)
@@ -254,33 +264,78 @@
   (read-extended-command-predicate #'command-completion-default-include-p)
   ;; Disable Ispell completion function. As an alternative try `cape-dict'.
   (text-mode-ispell-word-completion nil)
+  ;; When TAB is pressed, first try indendint line. If it's already indented,
+  ;; then complete at point
   (tab-always-indent 'complete)
+  ;; Allows cycling through candidates
+  (corfu-cycle t)
+  ;; Enable auto completion
+  (corfu-auto t)
+  ;; Minimum length of prefix for completion
+  (corfu-auto-prefix 2)
+  ;; No delay for completion
+  (corfu-auto-delay 0)
+  ;; Automatically update info popup after that number of seconds
+  (corfu-popupinfo-delay '(0.5 . 0.2))
+  ;; Insert previewed candidate
+  (corfu-preview-current nil)
+  (corfu-preselect 'prompt)
+  ;; Don't auto expand tempel snippets
+  (corfu-on-exact-match nil)
+
+  :bind (:map corfu-map
+              ("M-SPC"      . corfu-insert-separator)
+              ("TAB"        . corfu-next)
+              ([tab]        . corfu-next)
+              ("S-TAB"      . corfu-previous)
+              ([backtab]    . corfu-previous)
+              ("S-<return>" . corfu-insert)
+              ("RET"        . corfu-insert))
 
   ;; Enable Corfu
+  :init
+  (global-corfu-mode)
+  (corfu-history-mode)
+  (corfu-popupinfo-mode)
   :config
-  (global-corfu-mode))
+  (add-hook 'eshell-mode-hook
+            (lambda ()
+              (setq-local corfu-quit-at-boundary t
+                          corfu-quit-no-match t
+                          corfu-auto nil)
+              (corfu-mode))
+            nil
+            t))
 
+;; Completion backends for Corfu
 (use-package cape
   :ensure t
   :defer t
   :commands (cape-dabbrev cape-file cape-elisp-block)
-  :bind ("M-p" . cape-prefix-map)
+  :bind ("C-c p" . cape-prefix-map)
   :init
-  ;; Add to the global default value of `completion-at-point-functions' which is
-  ;; used by `completion-at-point'.
+  ;; Word from current buffers
   (add-hook 'completion-at-point-functions #'cape-dabbrev)
-  (add-hook 'completion-at-point-functions #'cape-file)
-  (add-hook 'completion-at-point-functions #'cape-elisp-block))
+  ;; Eshell, Comint or minibuffer history
+  (add-hook 'completion-at-point-functions #'cape-history)
+  ;; Elisp symbol
+  (add-hook 'completion-at-point-functions #'cape-elisp-block)
+  ;; Elisp in MD/ORG code blocks
+  (add-hook 'completion-at-point-functions #'cape-elisp-symbol)
+  ;; Programming keyword
+  (add-hook 'completion-at-point-functions #'cape-keyword))
 
 ;; Displays the key bindings following currently entered incomplete command (a
 ;; prefix) in a popup
 (use-package which-key
   :ensure t
+  :defer t
   :config
   (which-key-mode))
 
 (use-package popper
-  :ensure t                             ; or :straight t
+  :ensure t
+  :defer t
   :bind (("C-`"   . popper-toggle)
          ("M-`"   . popper-cycle)
          ("C-M-`" . popper-toggle-type))
@@ -298,7 +353,8 @@
 ;; Jump anywhere on scree using a char-based decision tree
 (use-package avy
   :ensure t
-  :bind ("C-'" . 'avy-goto-char-timer)
+  :defer t
+  :bind ("C-c g" . 'avy-goto-char-timer)
   :config
   (avy-setup-default)
   (set-face-attribute 'avy-lead-face nil
@@ -307,23 +363,29 @@
 
 (use-package ace-window
   :ensure t
-  :bind ("M-n" . 'ace-window)
+  :defer t
+  :bind ("C-c w" . 'ace-window)
   :config
+  ;; Don't automatically switch to other window when there are only two.
+  ;; This is because we want to be able to run other commands that "switch to"
   (setq aw-dispatch-always t))
 
 ;; Dim windows that don't contain the point
 (use-package dimmer
   :ensure t
+  :defer t
   :config
   (dimmer-configure-which-key)
   (setq dimmer-fraction 0.4)
   (dimmer-mode t))
 
 (use-package multiple-cursors
-  :ensure t)
+  :ensure t
+  :defer t)
 
 (use-package rainbow-delimiters
   :ensure t
+  :defer t
   :config
   (dolist (hook '(emacs-lisp-mode-hook ;; When editing Emacs Lisp code
                   ;; While interactively evaluating Emacs Lisp expressions in
@@ -336,35 +398,37 @@
                   ;; In SLIME REPL
                   slime-repl-mode-hook))
     (add-hook hook 'rainbow-delimiters-mode))
-  (set-face-foreground 'rainbow-delimiters-depth-1-face "#c66") ;; red
-  (set-face-foreground 'rainbow-delimiters-depth-2-face "#6c6") ;; green
-  (set-face-foreground 'rainbow-delimiters-depth-3-face "#69f") ;; blue
-  (set-face-foreground 'rainbow-delimiters-depth-4-face "#cc6") ;; yellow
-  (set-face-foreground 'rainbow-delimiters-depth-5-face "#6cc") ;; cyan
-  (set-face-foreground 'rainbow-delimiters-depth-6-face "#c6c") ;; magenta
-  (set-face-foreground 'rainbow-delimiters-depth-7-face "#ccc") ;; light gray
-  (set-face-foreground 'rainbow-delimiters-depth-8-face "#999") ;; medium gray
+  (set-face-foreground 'rainbow-delimiters-depth-1-face "#c66")  ;; red
+  (set-face-foreground 'rainbow-delimiters-depth-2-face "#6c6")  ;; green
+  (set-face-foreground 'rainbow-delimiters-depth-3-face "#69f")  ;; blue
+  (set-face-foreground 'rainbow-delimiters-depth-4-face "#cc6")  ;; yellow
+  (set-face-foreground 'rainbow-delimiters-depth-5-face "#6cc")  ;; cyan
+  (set-face-foreground 'rainbow-delimiters-depth-6-face "#c6c")  ;; magenta
+  (set-face-foreground 'rainbow-delimiters-depth-7-face "#ccc")  ;; light gray
+  (set-face-foreground 'rainbow-delimiters-depth-8-face "#999")  ;; medium gray
   (set-face-foreground 'rainbow-delimiters-depth-9-face "#666")) ;; dark gray
 
 (use-package lispy
   :ensure t
+  :defer t
   :init
   (dolist (hook '(emacs-lisp-mode-hook ;; When editing Emacs Lisp code
-                ;; In eval-expression minibuffer
-                 eval-expression-minibuffer-setup-hook
-                ;; While interactively evaluating Emacs Lisp expressions in
-                ;; inferior-emacs-lisp-mode (IELM)
-                 ielm-mode-hook
-                ;; In Lisp interaction mode
-                lisp-interaction-mode-hook
-                ;; While editing Common Lisp code
-                lisp-mode-hook
-                ;; In SLIME REPL
-                slime-repl-mode-hook))
+                  ;; In eval-expression minibuffer
+                  eval-expression-minibuffer-setup-hook
+                  ;; While interactively evaluating Emacs Lisp expressions in
+                  ;; inferior-emacs-lisp-mode (IELM)
+                  ielm-mode-hook
+                  ;; In Lisp interaction mode
+                  lisp-interaction-mode-hook
+                  ;; While editing Common Lisp code
+                  lisp-mode-hook
+                  ;; In SLIME REPL
+                  slime-repl-mode-hook))
     (add-hook hook (lambda () (lispy-mode 1)))))
 
 (use-package slime
   :ensure t
+  :defer t
   :config
   (setq inferior-lisp-program "sbcl")
   (defun override-slime-del-key ()
@@ -377,6 +441,8 @@
                  slime-asdf)))
 
 (use-package slime-docker
+  :ensure t
+  :defer t
   :custom
   (slime-docker-image-name "sbcl-dev")
   (slime-docker-mounts `(((,(expand-file-name "~/projects/dendrit/") . "/root/"))))
@@ -384,10 +450,10 @@
   (slime-docker-gid 0)
   (slime-docker-ports `((:ip "127.0.0.1" :host-port 56366 :container-port 5000))))
 
-
 (use-package treesit
   ;; emacs built-in
   :ensure nil
+  :defer t
   :mode (("\\.js\\'"  . typescript-ts-mode)
          ("\\.json\\'" .  json-ts-mode)
          ("\\.Dockerfile\\'" . dockerfile-ts-mode))
@@ -431,12 +497,22 @@
   :config
   (os/setup-install-grammars))
 
+;; Linter/syntax checker
+(use-package flycheck
+  :ensure t
+  :defer t
+  :init (global-flycheck-mode)
+  :bind (:map flycheck-mode-map
+              ("M-n" . flycheck-next-error)
+              ("M-p" . flycheck-previous-error)))
 
 (use-package dockerfile-mode
   :ensure t
+  :defer t
   :config
   (put 'dockerfile-image-name 'safe-local-variable #'stringp))
 
+;;; ORG mode
 (org-babel-do-load-languages
  'org-babel-load-languages
  '((emacs-lisp . t)
@@ -447,4 +523,42 @@
 ;; for more info
 (setq org-link-search-must-match-exact-headline nil)
 
+(use-package gumshoe
+  :init
+  ;; Enabing global-gumshoe-mode will initiate tracking
+  (global-gumshoe-mode +1)
+  :config
+  :bind (("M-[" . gumshoe-win-backtrack)
+         :map global-gumshoe-backtracking-mode-map
+         ("M-[" . global-gumshoe-backtracking-mode-back)
+         ("M-]" . global-gumshoe-backtracking-mode-forward)))
 
+;; Colorises s-exp's based on their depth.
+;; This mode needs to be activated manually the first time, since the hook is
+;; only added in :config. This is because if it's added in :init, the colors get
+;; completely screwed up for reasons I couldn't figure out (likely some other
+;; mode hook runs afterwards, and changes something). It's not perfect, but in
+;; practice it works fine
+(use-package prism
+  :ensure t
+  :defer t
+  :config
+  (dolist (hook '(emacs-lisp-mode-hook lisp-mode-hook))
+    (add-hook hook 'prism-mode))
+  (prism-set-colors :num 16
+    :desaturations (cl-loop for i from 0 below 16
+                            collect (* i 2.5))
+    :lightens (cl-loop for i from 0 below 16
+                       collect (* i 2.5))
+    :colors (list "medium sea green" "sandy brown" "dodgerblue")
+  
+    :comments-fn
+    (lambda (color)
+      (prism-blend color
+                   (face-attribute 'font-lock-comment-face :foreground) 0.25))
+  
+    :strings-fn
+    (lambda (color)
+      (prism-blend color "white" 0.5))))
+
+;; End
