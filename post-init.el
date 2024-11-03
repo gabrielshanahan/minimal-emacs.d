@@ -71,6 +71,9 @@
 ;; the precise point where you previously left off.
 (add-hook 'after-init-hook #'save-place-mode)
 
+;; Allow using :straight in `use-package'
+(straight-use-package-mode 1)
+
 ;; A few more useful configurations...
 (use-package emacs
   :custom
@@ -105,7 +108,6 @@
   ;; It is recommended to enable the savehist package, because vertico sorts by
   ;; history position
   :ensure t
-  :defer t
   :commands vertico-mode
   :hook (after-init . vertico-mode))
 
@@ -114,12 +116,15 @@
   ;; to input multiple patterns separated by spaces, which Orderless then
   ;; matches in any order against the candidates.
   :ensure t
-  :defer t
   :custom
   (orderless-matching-styles '(orderless-literal orderless-regexp orderless-flex))
   (completion-styles '(orderless partial-completion basic))
   (completion-category-defaults nil)
-  (completion-category-overrides '((file (styles partial-completion)))))
+  ;; The basic completion style needs to be tried first (not as a fallback) for
+  ;; TRAMP hostname completion to work. The partial-completion style allows you
+  ;; to use wildcards for file completion and partial paths, e.g., /u/s/l for
+  ;; /usr/share/local
+  (completion-category-overrides '((file (styles basic partial-completion)))))
 
 (use-package marginalia
   ;; Marginalia allows Embark to offer you preconfigured actions in more
@@ -127,7 +132,6 @@
   ;; rich annotations to the completion candidates displayed in Vertico's
   ;; interface.
   :ensure t
-  :defer t
   :commands (marginalia-mode marginalia-cycle)
   :hook (after-init . marginalia-mode))
 
@@ -166,9 +170,17 @@
   :hook
   (embark-collect-mode . consult-preview-at-point-mode))
 
-(use-package consult
+(use-package consult-dir
   :ensure t
   :defer t
+  :after (consult vertico)
+  :bind (("C-x C-d" . consult-dir)
+         :map vertico-map
+         ("C-x C-d" . consult-dir)
+         ("C-x C-j" . consult-dir-jump-file)))
+
+(use-package consult
+  :ensure t
   :bind (;; C-c bindings in `mode-specific-map'
          ("C-c M-x" . consult-mode-command)
          ("C-c h" . consult-history)
@@ -295,7 +307,11 @@
   ;; Enable Corfu
   :init
   (global-corfu-mode)
+  ;; Update Corfu history and sort completions by history.
   (corfu-history-mode)
+  ;; Display an information popup for completion candidate when using Corfu. The
+  ;; popup displays either the candidate documentation or the candidate
+  ;; location.
   (corfu-popupinfo-mode)
   :config
   (add-hook 'eshell-mode-hook
@@ -310,7 +326,6 @@
 ;; Completion backends for Corfu
 (use-package cape
   :ensure t
-  :defer t
   :commands (cape-dabbrev cape-file cape-elisp-block)
   :bind ("C-c p" . cape-prefix-map)
   :init
@@ -329,13 +344,11 @@
 ;; prefix) in a popup
 (use-package which-key
   :ensure t
-  :defer t
   :config
   (which-key-mode))
 
 (use-package popper
   :ensure t
-  :defer t
   :bind (("C-`"   . popper-toggle)
          ("M-`"   . popper-cycle)
          ("C-M-`" . popper-toggle-type))
@@ -373,7 +386,6 @@
 ;; Dim windows that don't contain the point
 (use-package dimmer
   :ensure t
-  :defer t
   :config
   (dimmer-configure-which-key)
   (setq dimmer-fraction 0.4)
@@ -385,7 +397,6 @@
 
 (use-package rainbow-delimiters
   :ensure t
-  :defer t
   :config
   (dolist (hook '(emacs-lisp-mode-hook ;; When editing Emacs Lisp code
                   ;; While interactively evaluating Emacs Lisp expressions in
@@ -500,7 +511,6 @@
 ;; Linter/syntax checker
 (use-package flycheck
   :ensure t
-  :defer t
   :init (global-flycheck-mode)
   :bind (:map flycheck-mode-map
               ("M-n" . flycheck-next-error)
@@ -560,5 +570,134 @@
     :strings-fn
     (lambda (color)
       (prism-blend color "white" 0.5))))
+
+;; Edit in grep buffers
+(use-package wgrep
+  :ensure t
+  :defer t
+  :config
+  (setq wgrep-auto-save-buffer t))
+
+;; Needed for `lsp-enable-snippet'
+(use-package yasnippet
+  :ensure t
+  :defer t
+  :after lsp-mode)
+
+;; https://emacs-lsp.github.io/lsp-mode/page/performance/#use-plists-for-deserialization
+;; https://github.com/emacs-lsp/lsp-mode/issues/4059
+;; Also necessary to delete all *.elc files (in my case in .emacs.d/var/straight
+;; https://github.com/emacs-lsp/lsp-mode/issues/3602
+(setq lsp-use-plists t)
+(use-package lsp-mode
+  :diminish "LSP"
+  :ensure t
+  :hook ((lsp-mode . lsp-diagnostics-mode)
+         (lsp-mode . lsp-enable-which-key-integration)
+         ((tsx-ts-mode
+           typescript-ts-mode
+           js-ts-mode) . lsp-deferred))
+  :custom
+  (lsp-keymap-prefix "C-c l")           ; Prefix for LSP actions
+  (lsp-completion-provider :none)       ; Using Corfu as the provider
+  (lsp-diagnostics-provider :flycheck)
+  (lsp-session-file (locate-user-emacs-file ".lsp-session"))
+  (lsp-log-io nil) ; IMPORTANT! Toggle only for debugging! Drastically affects performance
+  (lsp-keep-workspace-alive nil) ; Close LSP server if all project buffers are closed
+  (lsp-idle-delay 0.5)           ; Debounce timer for `after-change-function'
+  ;; core
+  (lsp-enable-xref t)           ; Use xref to find references
+  (lsp-auto-configure t)        ; Used to decide between current active servers
+  (lsp-eldoc-enable-hover t)    ; Display signature information in the echo area
+  (lsp-enable-dap-auto-configure t)     ; Debug support
+  (lsp-enable-file-watchers nil)
+  (lsp-enable-imenu t)
+  (lsp-enable-links nil)                 ; No need since we have `browse-url'
+  (lsp-enable-suggest-server-download t) ; Useful prompt to download LSP providers
+  (lsp-enable-symbol-highlighting t) ; Shows usages of symbol at point in the current buffer
+  (lsp-enable-text-document-color nil)  ; This is Treesitter's job
+
+  (lsp-ui-sideline-show-hover nil)      ; Sideline used only for diagnostics
+  (lsp-ui-sideline-diagnostic-max-lines 20) ; 20 lines since typescript errors can be quite big
+  ;; completion
+  (lsp-completion-enable t)
+  (lsp-completion-enable-additional-text-edit t) ; Ex: auto-insert an import for a completion candidate
+  (lsp-enable-snippet t)              ; Important to provide full JSX completion
+  (lsp-completion-show-kind t)        ; Optional
+  ;; headerline
+  (lsp-headerline-breadcrumb-enable t)  ; Optional, I like the breadcrumbs
+  (lsp-headerline-breadcrumb-enable-diagnostics nil) ; Don't make them red, too noisy
+  (lsp-headerline-breadcrumb-enable-symbol-numbers nil)
+  (lsp-headerline-breadcrumb-icons-enable nil)
+  ;; modeline
+  (lsp-modeline-code-actions-enable nil) ; Modeline should be relatively clean
+  (lsp-modeline-diagnostics-enable nil)  ; Already supported through `flycheck'
+  (lsp-modeline-workspace-status-enable nil) ; Modeline displays "LSP" when lsp-mode is enabled
+  (lsp-signature-doc-lines 1)      ; Don't raise the echo area. It's distracting
+  (lsp-ui-doc-use-childframe t)    ; Show docs for symbol at point
+  (lsp-eldoc-render-all t) ; This would be very useful if it would respect `lsp-signature-doc-lines', currently it's distracting
+  ;; lens
+  (lsp-lens-enable t)              ; Optional, I don't need it
+  ;; semantic
+  (lsp-semantic-tokens-enable nil) ; Related to highlighting, and we defer to treesitter
+  :preface
+  (defun lsp-booster--advice-json-parse (old-fn &rest args)
+    "Try to parse bytecode instead of json."
+    (or
+     (when (equal (following-char) ?#)
+
+       (let ((bytecode (read (current-buffer))))
+         (when (byte-code-function-p bytecode)
+           (funcall bytecode))))
+     (apply old-fn args)))
+  (defun lsp-booster--advice-final-command (old-fn cmd &optional test?)
+    "Prepend emacs-lsp-booster command to lsp CMD."
+    (let ((orig-result (funcall old-fn cmd test?)))
+      (if (and (not test?) ;; for check lsp-server-present?
+               (not (file-remote-p default-directory)) ;; see lsp-resolve-final-command, it would add extra shell wrapper
+               lsp-use-plists
+               (not (functionp 'json-rpc-connection)) ;; native json-rpc
+               (executable-find "emacs-lsp-booster"))
+          (progn
+            (message "Using emacs-lsp-booster for %s!" orig-result)
+            (cons "emacs-lsp-booster" orig-result))
+        orig-result)))
+  :init
+  ;; Initiate https://github.com/blahgeek/emacs-lsp-booster for performance
+  (advice-add (if (progn (require 'json)
+                         (fboundp 'json-parse-buffer))
+                  'json-parse-buffer
+                'json-read)
+              :around
+              #'lsp-booster--advice-json-parse)
+  (advice-add 'lsp-resolve-final-command :around #'lsp-booster--advice-final-command))
+
+(use-package lsp-ui
+  :ensure t
+  :commands
+  (lsp-ui-doc-show
+   lsp-ui-doc-glance)
+  :bind (:map lsp-mode-map
+              ("C-c C-d" . 'lsp-ui-doc-glance))
+  :after lsp-mode
+  :config (setq lsp-ui-doc-enable t
+                lsp-ui-doc-show-with-cursor nil ; Don't show doc when cursor is over symbol - too distracting
+                lsp-ui-doc-include-signature t  ; Show signature
+                lsp-ui-doc-position 'at-point))
+
+(use-package lsp-tailwindcss
+  :straight '(lsp-tailwindcss :type git :host github :repo "merrickluo/lsp-tailwindcss")
+  :init (setq lsp-tailwindcss-add-on-mode t)
+  :config
+  (dolist (tw-major-mode
+           '(css-mode
+             css-ts-mode
+             typescript-mode
+             typescript-ts-mode
+             tsx-ts-mode
+             js2-mode
+             js-ts-mode
+             lisp-mode))
+    (add-to-list 'lsp-tailwindcss-major-modes tw-major-mode)))
 
 ;; End

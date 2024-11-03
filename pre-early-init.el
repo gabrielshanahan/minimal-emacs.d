@@ -5,3 +5,5 @@
 (setq package-user-dir (expand-file-name "elpa" minimal-emacs-var-dir))
 (setq user-emacs-directory minimal-emacs-var-dir)
 
+(setenv "LSP_USE_PLISTS" "true")
+
