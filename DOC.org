@@ -1,0 +1,11 @@
+* Emacs notes
+** Searching Emacs docs
+Use ~M-x info-appropose~ in combination with ~consult-line~. Use ~info-appropos~
+to do a very basic rough search, ~consult-line~ to narrow it. [[https://stackoverflow.com/questions/10912543/how-to-effectively-use-the-self-documenting-system-of-emacs][This]] is a very
+good SO article on all the possibilities:
+
+> Look for "buffer" in the manual's contents page: ~C-h r~
+> Search the manual's index ~C-h r I~ buffers ~RET~
+> Search the keybindings: ~C-h b M-x occur RET buffer RET~
+> ~C-h k~ click the ~"File" -> "Close"~ menu item
+

@@ -17,3 +17,6 @@
 /tree-sitter/
 /undo-fu-session/
 /var/
+
+# Emacs auto-save files
+\#*\#

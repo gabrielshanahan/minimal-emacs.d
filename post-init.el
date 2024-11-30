@@ -15,10 +15,10 @@
 ;; Highlight matching parens, with no delay
 (setq show-paren-delay 0)
 
-;; Display guide at 80 chars
-(setq-default display-fill-column-indicator-column 80)
+;; Set fill column and display guide at 120 chars
+(setq-default fill-column 120)
+(setq-default display-fill-column-indicator-column 120)
 (add-hook 'prog-mode-hook 'display-fill-column-indicator-mode)
-(add-hook 'text-mode-hook 'display-fill-column-indicator-mode)
 (add-hook 'text-mode-hook 'display-fill-column-indicator-mode)
 (set-face-attribute 'fill-column-indicator nil :foreground "grey20")
 
@@ -391,6 +391,19 @@
   (setq dimmer-fraction 0.4)
   (dimmer-mode t))
 
+;; Highlight TODO's etc
+(use-package hl-todo
+  :hook (prism-mode . hl-todo-mode)
+  :config
+  (setq hl-todo-highlight-punctuation ":"
+        hl-todo-keyword-faces
+        `(("TODO"       warning bold)
+          ("FIXME"      error bold)
+          ("HACK"       font-lock-constant-face bold)
+          ("REVIEW"     font-lock-keyword-face bold)
+          ("NOTE"       success bold)
+          ("DEPRECATED" font-lock-doc-face bold))))
+
 (use-package multiple-cursors
   :ensure t
   :defer t)
@@ -447,7 +460,7 @@
                 (read-kbd-macro "DEL") nil))
   (add-hook 'slime-repl-mode-hook 'override-slime-del-key)
   (require 'slime-autoloads)
-  (slime-setup '(slime-repl
+  (slime-setup '(slime-fancy
                  slime-tramp
                  slime-asdf)))
 
@@ -560,7 +573,7 @@
                             collect (* i 2.5))
     :lightens (cl-loop for i from 0 below 16
                        collect (* i 2.5))
-    :colors (list "medium sea green" "sandy brown" "dodgerblue")
+    :colors (list "sandy brown" "DarkOrchid1" "medium sea green" "dodgerblue")
   
     :comments-fn
     (lambda (color)

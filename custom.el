@@ -5,6 +5,9 @@
  ;; If there is more than one, they won't work right.
  '(custom-safe-themes
    '("8d3ef5ff6273f2a552152c7febc40eabca26bae05bd12bc85062e2dc224cde9a" default))
+ '(ignored-local-variable-values
+   '((eval put 'test-js-eval 'common-lisp-indent-function 1)
+     (eval put 'test-ps-js 'common-lisp-indent-function 1)))
  '(package-selected-packages
    '(lsp-ui lsp-completion lsp-mode wgrep consult-dir prism gumshoe flycheck treesit slime-docker dockerfile-mode slime rainbow-delimiters multiple-cursors dimmer which-key vertico popper orderless marginalia lispy embark-consult doom-themes corfu cape))
  '(safe-local-variable-values
@@ -20,4 +23,4 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- )
+ '(corfu-current ((t (:background "#212337" :foreground "#c8d3f5" :underline t)))))
