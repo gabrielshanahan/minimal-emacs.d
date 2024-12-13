@@ -74,6 +74,21 @@
 ;; Allow using :straight in `use-package'
 (straight-use-package-mode 1)
 
+;; Enable backup files (configuration is in init.el)
+(setq make-backup-files t)
+;; Also backup version controlled files
+(setq vc-make-backup-files t)
+;; How many versions should be kept
+(setq kept-new-versions 500)
+;; Force backups on every save, not just the first
+(add-hook 'before-save-hook  (lambda () (setq buffer-backed-up nil)))
+
+;; Delete seleted text when typing
+(delete-selection-mode t)
+
+;; Highlight line the cursor is on, globally
+(global-hl-line-mode 1)
+
 ;; A few more useful configurations...
 (use-package emacs
   :custom
@@ -289,7 +304,7 @@
   (corfu-auto-delay 0)
   ;; Automatically update info popup after that number of seconds
   (corfu-popupinfo-delay '(0.5 . 0.2))
-  ;; Insert previewed candidate
+  ;; Don't insert previewed candidate
   (corfu-preview-current nil)
   (corfu-preselect 'prompt)
   ;; Don't auto expand tempel snippets
@@ -301,8 +316,7 @@
               ([tab]        . corfu-next)
               ("S-TAB"      . corfu-previous)
               ([backtab]    . corfu-previous)
-              ("S-<return>" . corfu-insert)
-              ("RET"        . corfu-insert))
+              ("S-<return>" . corfu-insert))
 
   ;; Enable Corfu
   :init
@@ -397,12 +411,17 @@
   :config
   (setq hl-todo-highlight-punctuation ":"
         hl-todo-keyword-faces
-        `(("TODO"       warning bold)
-          ("FIXME"      error bold)
-          ("HACK"       font-lock-constant-face bold)
-          ("REVIEW"     font-lock-keyword-face bold)
-          ("NOTE"       success bold)
-          ("DEPRECATED" font-lock-doc-face bold))))
+        `(("TODO"             warning bold)
+          ("FIXME"            error bold)
+          ("HACK"             font-lock-constant-face bold)
+          ("REVIEW"           font-lock-keyword-face bold)
+          ("NOTE"             success bold)
+          ("DEPRECATED"       font-lock-doc-face bold))))
+
+;; Allow searching of hl-todo via consult
+(use-package consult-todo
+  :ensure t
+  :after hl-todo)
 
 (use-package multiple-cursors
   :ensure t
@@ -433,6 +452,10 @@
   (set-face-foreground 'rainbow-delimiters-depth-9-face "#666")) ;; dark gray
 
 (use-package lispy
+  :straight (lispy
+         :type git
+         :host github
+         :repo "enzuru/lispy")
   :ensure t
   :defer t
   :init
@@ -455,6 +478,7 @@
   :defer t
   :config
   (setq inferior-lisp-program "sbcl")
+  (setq slime-load-failed-fasl 'never)
   (defun override-slime-del-key ()
     (define-key slime-repl-mode-map
                 (read-kbd-macro "DEL") nil))

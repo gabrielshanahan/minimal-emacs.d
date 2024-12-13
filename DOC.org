@@ -8,4 +8,7 @@ good SO article on all the possibilities:
 > Search the manual's index ~C-h r I~ buffers ~RET~
 > Search the keybindings: ~C-h b M-x occur RET buffer RET~
 > ~C-h k~ click the ~"File" -> "Close"~ menu item
-
+** Refactoring
+*** Highlighting symbols
+Use ~highlight-symbol-at-point~ (~M-s h .~ by default) to highlight symbol at point, so you know what you need to
+refactor. Undo with ~M-S h u~. [[https://www.masteringemacs.org/article/highlighting-by-word-line-regexp][There's more it can do.]]
